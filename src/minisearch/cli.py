@@ -87,7 +87,19 @@ def cmd_wiki(args: argparse.Namespace) -> None:
     from minisearch.datasets.wikipedia import iter_wikipedia, write_jsonl
 
     t0 = time.perf_counter()
-    n = write_jsonl(iter_wikipedia(args.dump, args.limit), args.out)
+    print("converting Wikipedia dump (takes a few minutes) ...", file=sys.stderr, flush=True)
+
+    def with_progress(docs):
+        for i, doc in enumerate(docs, 1):
+            if i % 10_000 == 0:
+                print(
+                    f"  {i:,} articles  ({time.perf_counter() - t0:.0f}s)",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            yield doc
+
+    n = write_jsonl(with_progress(iter_wikipedia(args.dump, args.limit)), args.out)
     print(f"wrote {n:,} articles to {args.out} in {time.perf_counter() - t0:.0f}s")
 
 

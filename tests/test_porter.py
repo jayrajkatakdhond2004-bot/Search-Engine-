@@ -101,8 +101,13 @@ def test_matches_nltk_original_algorithm_on_real_vocabulary():
     oracle = nltk_porter.PorterStemmer(mode=nltk_porter.PorterStemmer.ORIGINAL_ALGORITHM)
 
     words = set(PAPER_EXAMPLES)
-    for path in Path(__file__).resolve().parents[1].rglob("*.py"):
-        words.update(re.findall(r"[a-z]{3,}", path.read_text(encoding="utf-8").lower()))
+    # Only the project's own sources: a virtualenv inside the repo (.venv/) holds
+    # third-party files that are not all UTF-8.
+    root = Path(__file__).resolve().parents[1]
+    for folder in ("src", "tests"):
+        for path in (root / folder).rglob("*.py"):
+            text = path.read_text(encoding="utf-8", errors="ignore").lower()
+            words.update(re.findall(r"[a-z]{3,}", text))
     words.update(_GENERATED)
     mismatches = {w: (stem(w), oracle.stem(w)) for w in words if stem(w) != oracle.stem(w)}
     assert not mismatches, mismatches
