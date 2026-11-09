@@ -25,7 +25,12 @@ from minisearch.ranking.base import CollectionStats, Ranker, TermScorer
 
 
 def bm25_idf(df: int, num_docs: int) -> float:
-    """BM25 inverse document frequency (always > 0)."""
+    """BM25 inverse document frequency (always > 0).
+
+    ``df`` is clamped to ``N``: df still counts deleted docs until a merge,
+    and without the clamp a term in almost every doc gets a negative IDF.
+    """
+    df = min(df, num_docs)
     return math.log(1.0 + (num_docs - df + 0.5) / (df + 0.5))
 
 

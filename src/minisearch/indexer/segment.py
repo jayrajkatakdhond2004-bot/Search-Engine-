@@ -29,27 +29,46 @@ class Postings:
     """Decoded postings of one term within one segment.
 
     ``doc_ids`` are *global* doc IDs, sorted ascending. Positions are decoded
-    lazily, per document, because only phrase queries need them.
+    lazily, because only phrase queries need them.
     """
 
-    __slots__ = ("doc_ids", "tfs", "_positions", "_positions_loader")
+    __slots__ = ("doc_ids", "tfs", "_positions", "_flat_loader", "_flat", "_starts")
 
-    def __init__(self, doc_ids: np.ndarray, tfs: np.ndarray, positions=None, positions_loader=None):
+    def __init__(self, doc_ids: np.ndarray, tfs: np.ndarray, positions=None, flat_loader=None):
         self.doc_ids = doc_ids
         self.tfs = tfs
-        self._positions = positions  # list[list[int]] when fully materialised
-        self._positions_loader = positions_loader  # callable(i) -> list[int]
+        self._positions = positions  # list[list[int]] (memory segments)
+        self._flat_loader = flat_loader  # () -> flat np.ndarray (disk segments)
+        self._flat: np.ndarray | None = None
+        self._starts: np.ndarray | None = None
 
     def __len__(self) -> int:
         return len(self.doc_ids)
 
-    def positions(self, i: int) -> list[int]:
+    def flat_positions(self) -> np.ndarray:
+        """All positions concatenated; ``tfs[i]`` of them belong to ``doc_ids[i]``."""
+        if self._flat is None:
+            if self._flat_loader is not None:
+                self._flat = self._flat_loader()
+            elif self._positions is not None:
+                n = len(self.doc_ids)
+                self._flat = np.fromiter(
+                    (p for doc in self._positions[:n] for p in doc),
+                    dtype=np.int64,
+                    count=int(self.tfs.sum()),
+                )
+            else:
+                raise ValueError("positions are not available")
+        return self._flat
+
+    def positions(self, i: int) -> np.ndarray:
         """Positions of the term in the ``i``-th document of this postings list."""
         if self._positions is not None:
-            return self._positions[i]
-        if self._positions_loader is None:
-            raise ValueError("positions were not indexed for this field")
-        return self._positions_loader(i)
+            return np.asarray(self._positions[i], dtype=np.int64)
+        if self._starts is None:
+            self._starts = np.concatenate(([0], np.cumsum(self.tfs)))
+        flat = self.flat_positions()
+        return flat[self._starts[i] : self._starts[i + 1]]
 
 
 class Segment(ABC):

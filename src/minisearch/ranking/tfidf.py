@@ -25,6 +25,7 @@ from minisearch.ranking.base import CollectionStats, Ranker, TermScorer
 
 
 def tfidf_idf(df: int, num_docs: int) -> float:
+    df = min(df, num_docs)  # df counts deleted docs until merge
     return 1.0 + math.log((num_docs + 1) / (df + 1))
 
 

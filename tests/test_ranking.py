@@ -135,3 +135,12 @@ def test_pagination_offsets(searcher):
     page2 = searcher.search("cat dog", k=2, offset=2)
     assert [h.doc_id for h in page1.hits] == [2, 1]
     assert [h.doc_id for h in page2.hits] == [0]
+
+
+def test_idf_never_negative_when_df_counts_deleted_docs():
+    # df (incl. not-yet-merged deletes) can exceed the live doc count N.
+    assert bm25_idf(120, 100) > 0
+    assert bm25_idf(100, 100) > 0
+    from minisearch.ranking import tfidf_idf
+
+    assert tfidf_idf(120, 100) > 0

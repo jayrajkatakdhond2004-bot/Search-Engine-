@@ -349,16 +349,10 @@ class DiskSegment(Segment):
         if e is None:
             return None
         docs, tfs = self.files.decode_postings(e)
-        holder: dict[str, np.ndarray] = {}
-
-        def load_positions(i: int) -> np.ndarray:
-            if "flat" not in holder:
-                holder["flat"] = self.files.decode_positions(e, tfs)
-                holder["starts"] = np.concatenate(([0], np.cumsum(tfs)))
-            s = holder["starts"]
-            return holder["flat"][s[i] : s[i + 1]]
-
-        return Postings(docs + self.doc_base, tfs, positions_loader=load_positions)
+        files = self.files
+        return Postings(
+            docs + self.doc_base, tfs, flat_loader=lambda: files.decode_positions(e, tfs)
+        )
 
     def terms(self) -> list[str]:
         return self.files.terms()
