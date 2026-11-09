@@ -1,0 +1,164 @@
+{
+ "machine": "x86_64, 4 vCPU, Python 3.13.18",
+ "indexing": {
+  "docs": 100000,
+  "tokens": 19047838,
+  "index_seconds": 121.22,
+  "force_merge_seconds": 0.0,
+  "docs_per_sec": 825.0,
+  "tokens_per_sec": 157140,
+  "segments_before_force_merge": 1,
+  "peak_rss_mb": 1044.5,
+  "rss_growth_mb": 655.9,
+  "terms": 384530
+ },
+ "sizes": {
+  "source_text_mb": 152.7,
+  "compressed": {
+   "post": 24.55,
+   "pos": 28.95,
+   "dict": 4.76,
+   "docs": 81.36,
+   "ids": 1.4
+  },
+  "raw": {
+   "post": 83.76,
+   "pos": 72.66,
+   "dict": 4.79,
+   "docs": 81.36,
+   "ids": 1.4
+  },
+  "compressed_postings_mb": 53.49,
+  "compressed_index_mb": 58.26,
+  "raw_postings_mb": 156.42,
+  "raw_index_mb": 161.21,
+  "postings_ratio": 2.92,
+  "doc_ids_tfs_ratio": 3.41,
+  "positions_ratio": 2.51
+ },
+ "latency": {
+  "bm25": {
+   "free-text": {
+    "n": 600,
+    "mean": 1.29,
+    "p50": 0.98,
+    "p95": 2.99,
+    "p99": 5.73,
+    "max": 9.3
+   },
+   "all": {
+    "n": 1000,
+    "mean": 1.42,
+    "p50": 1.06,
+    "p95": 3.41,
+    "p99": 6.39,
+    "max": 13.14
+   },
+   "AND": {
+    "n": 150,
+    "mean": 1.42,
+    "p50": 1.22,
+    "p95": 2.7,
+    "p99": 4.12,
+    "max": 5.51
+   },
+   "phrase": {
+    "n": 150,
+    "mean": 1.22,
+    "p50": 0.95,
+    "p95": 2.91,
+    "p99": 4.98,
+    "max": 13.14
+   },
+   "wildcard": {
+    "n": 100,
+    "mean": 2.5,
+    "p50": 1.83,
+    "p95": 6.34,
+    "p99": 8.78,
+    "max": 8.81
+   },
+   "qps_single_thread": 702.6,
+   "median_hits": 115
+  },
+  "tfidf": {
+   "free-text": {
+    "n": 600,
+    "mean": 1.2,
+    "p50": 0.87,
+    "p95": 2.84,
+    "p99": 5.76,
+    "max": 7.77
+   },
+   "all": {
+    "n": 1000,
+    "mean": 1.34,
+    "p50": 0.99,
+    "p95": 3.41,
+    "p99": 6.19,
+    "max": 13.06
+   },
+   "AND": {
+    "n": 150,
+    "mean": 1.43,
+    "p50": 1.23,
+    "p95": 2.71,
+    "p99": 4.04,
+    "max": 5.85
+   },
+   "phrase": {
+    "n": 150,
+    "mean": 1.17,
+    "p50": 0.89,
+    "p95": 2.82,
+    "p99": 4.74,
+    "max": 13.06
+   },
+   "wildcard": {
+    "n": 100,
+    "mean": 2.33,
+    "p50": 1.62,
+    "p95": 6.15,
+    "p99": 8.39,
+    "max": 8.98
+   },
+   "qps_single_thread": 743.9,
+   "median_hits": 115
+  }
+ },
+ "engines": {
+  "vector (numpy TAAT)": {
+   "p50": 0.54,
+   "p95": 2.45,
+   "p99": 5.51,
+   "mean": 0.88,
+   "mean_scored": 3223.6,
+   "mean_blocks_skipped": 0
+  },
+  "DAAT exhaustive": {
+   "p50": 2.86,
+   "p95": 24.17,
+   "p99": 59.16,
+   "mean": 7.01,
+   "mean_scored": 2947.9,
+   "mean_blocks_skipped": 0
+  },
+  "DAAT + WAND": {
+   "p50": 3.07,
+   "p95": 13.38,
+   "p99": 20.05,
+   "mean": 4.75,
+   "mean_scored": 942.0,
+   "mean_blocks_skipped": 0.7
+  },
+  "ranking_mismatches_vs_vector_in_100": 0
+ },
+ "memory": {
+  "baseline_mb": 67.0,
+  "interpreter_mb": 14.7,
+  "libraries_mb": 32.0,
+  "opened_mb": 58.4,
+  "open_ms": 57.4,
+  "after_queries_mb": 201.3
+ }
+}

@@ -323,3 +323,13 @@ def test_query_terms_include_wildcard_expansions(tmp_path):
     res = idx.searcher().search("planet*")
     assert set(res.query_terms) == {"planet", "planetari"}
     assert res.term_groups == {"planet": "planet*", "planetari": "planet*"}
+
+
+def test_escape_removes_query_syntax():
+    from minisearch.query.parser import escape
+
+    assert (
+        escape('What (if any) "effect" of COVID-19 AND NOT x*?')
+        == "what if any effect of covid 19 and not x"
+    )
+    assert p(escape("cats AND -dogs")) == "(cat OR dog)"

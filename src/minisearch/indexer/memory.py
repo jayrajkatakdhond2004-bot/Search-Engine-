@@ -13,7 +13,7 @@ safe while more documents are being added.
 from __future__ import annotations
 
 import bisect
-from itertools import chain
+from array import array
 
 import numpy as np
 
@@ -21,16 +21,27 @@ from minisearch.indexer.segment import Postings, Segment, TermInfo
 
 
 class _TermBuffer:
-    """Growable postings for one term: parallel lists of local doc IDs, TFs and positions."""
+    """Growable postings for one term, stored as flat ``array('I')`` columns.
+
+    Columns of 4-byte unsigned ints instead of Python lists of int objects
+    (~36 bytes per value: pointer + int object) cut buffer memory by ~9x.
+    Positions are kept flat; ``tfs[i]`` of them belong to ``docs[i]``, which
+    is exactly the layout the segment writer needs.
+    """
 
     __slots__ = ("docs", "tfs", "positions", "max_tf", "min_dl")
 
     def __init__(self) -> None:
-        self.docs: list[int] = []
-        self.tfs: list[int] = []
-        self.positions: list[list[int]] = []
+        self.docs = array("I")
+        self.tfs = array("I")
+        self.positions = array("I")
         self.max_tf = 0
         self.min_dl = 1 << 31
+
+
+def _np(a: array, n: int) -> np.ndarray:
+    # Slicing copies, so numpy never holds a buffer export that would block later appends.
+    return np.frombuffer(a[:n], dtype=np.uint32).astype(np.int64)
 
 
 class _MemoryReader(Segment):
@@ -78,8 +89,13 @@ class _MemoryReader(Segment):
         n = self._cut(buf)
         if n == 0:
             return None
-        docs = np.asarray(buf.docs[:n], dtype=np.int64) + self.doc_base
-        return Postings(docs, np.asarray(buf.tfs[:n], dtype=np.int64), positions=buf.positions)
+        tfs = _np(buf.tfs, n)
+        total = int(tfs.sum())
+        return Postings(
+            _np(buf.docs, n) + self.doc_base,
+            tfs,
+            flat_loader=lambda: _np(buf.positions, total),
+        )
 
     def terms(self) -> list[str]:
         if self._upto is None or self._upto == len(self._seg._doc_lengths):
@@ -136,7 +152,7 @@ class MemorySegment(_MemoryReader):
                 new_terms = True
             tf = len(positions)
             buf.tfs.append(tf)
-            buf.positions.append(positions)
+            buf.positions.extend(positions)
             if tf > buf.max_tf:
                 buf.max_tf = tf
             if doc_len < buf.min_dl:
@@ -189,7 +205,7 @@ class MemorySegment(_MemoryReader):
         """Yield ``(term, docs, tfs, flat_positions, min_dl)`` in sorted term order."""
         for term in self._sorted():
             buf = self._postings[term]
-            yield term, buf.docs, buf.tfs, list(chain.from_iterable(buf.positions)), buf.min_dl
+            yield term, buf.docs, buf.tfs, buf.positions, buf.min_dl
 
     @property
     def ids(self) -> list[str]:

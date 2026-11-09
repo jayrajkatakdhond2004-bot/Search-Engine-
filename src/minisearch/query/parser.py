@@ -331,6 +331,19 @@ def normalize(node: Node | None, analyzer: Analyzer) -> Node | None:
     return node
 
 
+_PLAIN_WORD = re.compile(r"[^\W_]+(?:['\u2019][^\W_]+)*")
+
+
+def escape(text: str) -> str:
+    """Turn arbitrary text into a plain bag-of-words query with no operators.
+
+    Benchmark queries (Cranfield, SciFact, Wikipedia titles) contain ``(``,
+    ``-``, ``*``, quotes and uppercase AND/OR/NOT, which would otherwise be read
+    as query syntax.
+    """
+    return " ".join(w.lower() for w in _PLAIN_WORD.findall(text))
+
+
 def parse_query(query: str, analyzer: Analyzer, default_op: str = "OR") -> Node | None:
     """Parse and normalise: the AST the engines execute."""
     node = normalize(parse(query, default_op), analyzer)
