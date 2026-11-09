@@ -84,6 +84,11 @@ class Analyzer:
     def __init__(self, config: AnalyzerConfig | None = None) -> None:
         self.config = config or AnalyzerConfig()
         self._filters: Sequence[TermFilter] = self._build_filters(self.config)
+        # raw token -> normalised term (or None). Raw tokens are Zipfian, so this
+        # cache absorbs nearly every call: one dict lookup per token instead of
+        # running the whole filter chain. It is bounded by clearing when full.
+        self._cache: dict[str, str | None] = {}
+        self._cache_limit = 1_000_000
 
     @staticmethod
     def _build_filters(cfg: AnalyzerConfig) -> list[TermFilter]:
@@ -110,7 +115,18 @@ class Analyzer:
         return filters
 
     def normalize(self, term: str) -> str | None:
-        """Run a single raw term through the filter chain."""
+        """Run a single raw term through the filter chain (memoised)."""
+        try:
+            return self._cache[term]
+        except KeyError:
+            pass
+        result = self._normalize_uncached(term)
+        if len(self._cache) >= self._cache_limit:
+            self._cache.clear()
+        self._cache[term] = result
+        return result
+
+    def _normalize_uncached(self, term: str) -> str | None:
         result: str | None = term
         for f in self._filters:
             result = f(result)
@@ -118,12 +134,13 @@ class Analyzer:
                 return None
         return result
 
-    def analyze(self, text: str) -> list[tuple[str, int]]:
-        """Return ``(term, position)`` pairs for ``text``."""
+    def analyze(self, text: str, position_offset: int = 0) -> list[tuple[str, int]]:
+        """Return ``(term, position)`` pairs for ``text`` (positions start at ``position_offset``)."""
         out: list[tuple[str, int]] = []
+        cache = self._cache
         normalize = self.normalize
-        for pos, raw in enumerate(_TOKEN_RE.findall(text)):
-            term = normalize(raw)
+        for pos, raw in enumerate(_TOKEN_RE.findall(text), position_offset):
+            term = cache[raw] if raw in cache else normalize(raw)
             if term is not None:
                 out.append((term, pos))
         return out
