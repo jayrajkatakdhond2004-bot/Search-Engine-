@@ -53,6 +53,7 @@ class CrawlConfig:
     max_retries: int = 3
     backoff_base: float = 1.0
     save_every: int = 20
+    retry_failed: bool = False  # on resume, re-queue URLs that failed transiently
 
 
 @dataclass
@@ -102,10 +103,18 @@ class Crawler:
         self.state_path = Path(config.state_dir) / "frontier.json"
         self.stats = CrawlStats()
         self.content_hashes: set[str] = set()
+        self.failed: dict[str, int] = {}  # transient failures (network/5xx): url -> depth
         if self.state_path.exists():
             self.frontier, extra = Frontier.load(self.state_path)
             self.stats = CrawlStats(**extra.get("stats", {}))
             self.content_hashes = set(extra.get("hashes", []))
+            self.failed = dict(extra.get("failed", {}))
+            if config.retry_failed and self.failed:
+                for u, d in self.failed.items():
+                    self.frontier.seen.discard(u)
+                    self.frontier.add(u, d)
+                log.info("re-queued %d failed URLs", len(self.failed))
+                self.failed = {}
             log.info(
                 "resumed crawl: %d queued, %d seen", len(self.frontier), len(self.frontier.seen)
             )
@@ -118,7 +127,11 @@ class Crawler:
     def _save(self) -> None:
         self.frontier.save(
             self.state_path,
-            {"stats": self.stats.as_dict(), "hashes": sorted(self.content_hashes)},
+            {
+                "stats": self.stats.as_dict(),
+                "hashes": sorted(self.content_hashes),
+                "failed": self.failed,
+            },
         )
 
     def _error(self, kind: str) -> None:
@@ -185,6 +198,8 @@ class Crawler:
                 self.stats.offsite_redirects += 1
             else:
                 self._error(res.error or "unknown")
+                if res.status == 0 or res.status >= 500:  # transient: retry on a later run
+                    self.failed[url] = depth
             return None
 
         final = normalize_url(res.url) or url

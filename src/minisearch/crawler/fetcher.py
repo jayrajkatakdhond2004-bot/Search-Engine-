@@ -5,12 +5,26 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
 from minisearch.crawler.urls import normalize_url
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
+
+
+def no_downgrade(current: str, target: str) -> str:
+    """Rewrite a same-host https -> http redirect to https (what HSTS browsers do).
+
+    Some sites redirect ``https://host/x`` to ``http://host/x/``. Following
+    that downgrade would leak the request in clear text.
+    """
+    cur, tgt = urlsplit(current), urlsplit(target)
+    if cur.scheme == "https" and tgt.scheme == "http" and cur.hostname == tgt.hostname:
+        port = f":{tgt.port}" if tgt.port not in (None, 80, 443) else ""
+        return urlunsplit(("https", f"{tgt.hostname}{port}", tgt.path, tgt.query, ""))
+    return target
 
 
 @dataclass
@@ -28,6 +42,7 @@ class Fetcher:
 
     * retries transient failures (connection errors, 429, 5xx) with exponential
       backoff ``base * 2^attempt``, honouring ``Retry-After`` (capped)
+    * never follows a same-host https -> http downgrade (it is upgraded back)
     * follows up to 5 redirects *manually*: each ``Location`` is checked with
       ``allow_redirect`` before it is requested, so a redirect can never make the
       crawler leave its allowed domains
@@ -70,6 +85,7 @@ class Fetcher:
             target = normalize_url(location, url)
             if target is None:
                 return FetchResult(url, res.status, "", None, "bad redirect", retries)
+            target = no_downgrade(url, target)
             if not self.allow_redirect(target):
                 return FetchResult(target, res.status, "", None, "offsite redirect", retries)
             url = target

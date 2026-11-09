@@ -102,6 +102,7 @@ def cmd_crawl(args: argparse.Namespace) -> None:
         delay=args.delay,
         state_dir=Path(args.state),
         user_agent=args.user_agent,
+        retry_failed=args.retry_failed,
     )
     crawler = Crawler(cfg)
     n = crawler.run(out_path=Path(args.out))
@@ -160,6 +161,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-depth", type=int, default=5)
     s.add_argument("--delay", type=float, default=1.0, help="min seconds between requests per host")
     s.add_argument("--user-agent", default="minisearch-bot/0.1 (+educational crawler)")
+    s.add_argument(
+        "--retry-failed", action="store_true", help="re-queue transient failures on resume"
+    )
     s.set_defaults(func=cmd_crawl)
     return p
 

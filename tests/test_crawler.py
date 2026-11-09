@@ -260,3 +260,31 @@ def test_parse_crawl_delay_groups_and_floats():
     assert parse_crawl_delay(txt, "minisearch-bot/0.1 (+x)") == 0.5
     assert parse_crawl_delay(txt, "SomeBot/1.0") == 2.5
     assert parse_crawl_delay("User-agent: *\nDisallow: /x\n", "a") is None
+
+
+def test_redirect_never_downgrades_https():
+    from minisearch.crawler.fetcher import no_downgrade
+
+    assert no_downgrade("https://q.com/a", "http://q.com/a/") == "https://q.com/a/"
+    assert no_downgrade("https://q.com/a", "http://other.com/a") == "http://other.com/a"
+    assert no_downgrade("http://q.com/a", "http://q.com/b") == "http://q.com/b"
+
+
+def test_retry_failed_on_resume(tmp_path):
+    s = Site()
+    s.flaky_failures = 100  # /flaky keeps failing during the first run
+    try:
+        out = tmp_path / "out.jsonl"
+        first = make_crawler(s, tmp_path, max_retries=1)
+        first.run(out)
+        assert "http" in next(iter(first.failed)) and first.failed
+        s.flaky_failures = 0  # the server recovers
+        again = make_crawler(s, tmp_path)  # plain resume: failed URL is not retried
+        again.run(out)
+        assert not any(d["title"] == "Flaky" for d in read_docs(out))
+        retry = make_crawler(s, tmp_path, retry_failed=True)
+        retry.run(out)
+        assert any(d["title"] == "Flaky" for d in read_docs(out))
+        assert not retry.failed
+    finally:
+        s.close()
