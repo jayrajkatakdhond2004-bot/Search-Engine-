@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>minisearch</title>
+  <link rel="stylesheet" href="/ui/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='13' cy='13' r='8' fill='none' stroke='%232f6fde' stroke-width='4'/%3E%3Cpath d='M19 19l8 8' stroke='%232f6fde' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/" aria-label="minisearch home">mini<span>search</span></a>
+      <form id="search-form" class="search" role="search" autocomplete="off">
+        <input id="q" name="q" type="search" placeholder='Search…  try  "search engine" AND rank*' aria-label="Search query" autofocus>
+        <button type="submit">Search</button>
+      </form>
+      <div class="controls" aria-label="Search options">
+        <div class="seg" role="radiogroup" aria-label="Ranking function">
+          <button type="button" data-ranker="bm25" aria-pressed="true">BM25</button>
+          <button type="button" data-ranker="tfidf" aria-pressed="false">TF-IDF</button>
+        </div>
+        <div class="seg" role="radiogroup" aria-label="Default operator">
+          <button type="button" data-op="or" aria-pressed="true">Any term</button>
+          <button type="button" data-op="and" aria-pressed="false">All terms</button>
+        </div>
+        <details class="advanced">
+          <summary>Advanced</summary>
+          <div class="advanced-body">
+            <label>k1 <input id="k1" type="range" min="0" max="3" step="0.1" value="1.2"><output id="k1-out">1.2</output></label>
+            <label>b <input id="b" type="range" min="0" max="1" step="0.05" value="0.75"><output id="b-out">0.75</output></label>
+            <label>Engine
+              <select id="engine">
+                <option value="auto">auto (vectorised)</option>
+                <option value="daat">DAAT / WAND</option>
+              </select>
+            </label>
+          </div>
+        </details>
+        <button type="button" class="link" id="help-toggle" aria-expanded="false">Syntax</button>
+      </div>
+      <div id="help" class="help" hidden>
+        <code>cats dogs</code> any term · <code>cats AND dogs</code> · <code>cats OR dogs</code> ·
+        <code>NOT dogs</code> / <code>-dogs</code> · <code>"exact phrase"</code> ·
+        <code>comput*</code> prefix · <code>te?t</code> single char · <code>( … )</code> grouping
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p id="meta" class="meta" aria-live="polite"></p>
+    <p id="error" class="error" role="alert" hidden></p>
+    <section id="welcome" class="welcome">
+      <h1>Full-text search, built from scratch.</h1>
+      <p>Porter stemming, a segmented delta + VByte compressed inverted index, BM25 / TF-IDF ranking,
+        boolean, phrase and wildcard queries.</p>
+      <p class="examples">Try:
+        <a href="?q=history+of+science">history of science</a>
+        <a href="?q=%22united+states%22+AND+president">"united states" AND president</a>
+        <a href="?q=comput*+-game">comput* -game</a>
+      </p>
+    </section>
+    <ol id="results" class="results"></ol>
+    <nav id="pager" class="pager" aria-label="Pagination"></nav>
+  </main>
+
+  <footer class="wrap foot">
+    <span id="stats">Loading index statistics…</span>
+    <span><a href="/docs">API docs</a></span>
+  </footer>
+  <script src="/ui/app.js"></script>
+</body>
+</html>

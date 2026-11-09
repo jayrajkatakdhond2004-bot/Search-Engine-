@@ -30,8 +30,11 @@ def p(q: str, op: str = "OR") -> str:
         ("cats && dogs || birds", "((cat AND dog) OR bird)"),
         ("x1 y1 AND z1", "(x1 OR (y1 AND z1))"),
         ("NOT cats", "(*:* AND NOT cat)"),
-        ("-cats dogs", "(NOT cat OR dog)"),
-        ("dogs -cats", "(dog OR NOT cat)"),
+        ("-cats dogs", "(dog AND NOT cat)"),
+        ("dogs -cats", "(dog AND NOT cat)"),
+        ("dogs birds -cats", "((dog OR bird) AND NOT cat)"),
+        ("dogs OR -cats", "(dog OR NOT cat)"),  # explicit OR keeps its meaning
+        ("-cats -birds", "(*:* AND NOT cat AND NOT bird)"),
         ("dogs AND -cats", "(dog AND NOT cat)"),
         ("(cats OR dogs) AND NOT birds", "((cat OR dog) AND NOT bird)"),
         ('"New York" city', '("new york" OR citi)'),
@@ -312,3 +315,11 @@ def test_empty_index_and_query(tmp_path):
     idx.add({"id": "1", "body": "hello"})
     assert idx.searcher().search("").hits == []
     assert np.all(idx.searcher().live_mask)
+
+
+def test_query_terms_include_wildcard_expansions(tmp_path):
+    idx = Index(tmp_path / "i")
+    idx.add({"id": "1", "body": "planets planetary planet"})
+    res = idx.searcher().search("planet*")
+    assert set(res.query_terms) == {"planet", "planetari"}
+    assert res.term_groups == {"planet": "planet*", "planetari": "planet*"}

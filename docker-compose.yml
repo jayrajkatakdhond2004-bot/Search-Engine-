@@ -1,0 +1,24 @@
+services:
+  # The search API + web UI on http://localhost:8000
+  minisearch:
+    build: .
+    image: minisearch
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data/data
+      - ./indexes:/data/indexes
+    environment:
+      MINISEARCH_INDEX: /data/indexes/wiki
+    restart: unless-stopped
+
+  # One-off job to build the index:  docker compose run --rm indexer
+  indexer:
+    image: minisearch
+    profiles: ["tools"]
+    volumes:
+      - ./data:/data/data
+      - ./indexes:/data/indexes
+    command: >
+      minisearch index --index /data/indexes/wiki
+      --input /data/data/simplewiki.jsonl --limit 100000 --force-merge

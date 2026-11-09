@@ -252,6 +252,17 @@ class Index:
             self._cached_searcher = (self._version, s)
             return s
 
+    def get(self, ext_id: str) -> dict | None:
+        """Stored fields of a document by its external id (None if absent)."""
+        with self._lock:
+            loc = self._id_map.get(ext_id)
+            if loc is None:
+                return None
+            seg, local = loc
+            if seg is None:
+                return self._buffer.stored_docs[local]
+            return self._files[seg].stored(local)
+
     def __contains__(self, ext_id: str) -> bool:
         return ext_id in self._id_map
 
@@ -284,19 +295,28 @@ class Index:
             }
 
     def num_terms(self) -> int:
-        """Exact number of distinct terms across all segments (k-way merge of dictionaries)."""
+        """Exact number of distinct terms across all segments (k-way merge of dictionaries).
+
+        Cached until the next write.
+        """
         import heapq
+
+        cached = getattr(self, "_num_terms_cache", None)
+        if cached and cached[0] == self._version:
+            return cached[1]
 
         lists = [self._files[m.name].terms() for m in self.manifest.segments]
         if len(self._buffer):
             lists.append(self._buffer.terms())
-        if len(lists) == 1:
-            return len(lists[0])
         count, prev = 0, None
-        for t in heapq.merge(*lists):
-            if t != prev:
-                count += 1
-                prev = t
+        if len(lists) == 1:
+            count = len(lists[0])
+        else:
+            for t in heapq.merge(*lists):
+                if t != prev:
+                    count += 1
+                    prev = t
+        self._num_terms_cache = (self._version, count)
         return count
 
     def close(self) -> None:

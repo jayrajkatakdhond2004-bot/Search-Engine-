@@ -1,0 +1,8 @@
+data/
+indexes/
+crawl_state/
+.git/
+**/__pycache__
+.pytest_cache
+.ruff_cache
+benchmarks/results/raw

@@ -46,21 +46,33 @@ class SearchResults:
     total_hits: int
     took_ms: float
     query_terms: list[str] = field(default_factory=list)
+    term_groups: dict[str, str] = field(default_factory=dict)
     parsed: str = ""
     engine: str = "vector"
     total_is_exact: bool = True
     stats: dict = field(default_factory=dict)
 
 
-def query_terms(node: Node | None) -> list[str]:
-    """Positive (non-negated) terms of a query, for highlighting."""
+def query_terms(node: Node | None, searcher: IndexSearcher | None = None) -> dict[str, str]:
+    """Positive (non-negated) query terms for highlighting, mapped to a *group* key.
+
+    A term is its own group. The expansions of a wildcard (top 32) share the
+    pattern as their group, so the snippet picker treats ``planet*`` as one
+    concept, not 32.
+    """
     from minisearch.query.vector_engine import collect_units
+    from minisearch.query.wildcard import expand
 
     units = collect_units(node)
-    terms = list(units.terms)
+    groups: dict[str, str] = {t: t for t in units.terms}
     for ph in units.phrases:
-        terms.extend(ph.terms)
-    return list(dict.fromkeys(terms))
+        for t in ph.terms:
+            groups.setdefault(t, t)
+    if searcher is not None:
+        for wc in units.wildcards:
+            for t in expand(searcher, wc, max_expansions=32):
+                groups.setdefault(t, wc.pattern)
+    return groups
 
 
 class IndexSearcher:
@@ -236,11 +248,13 @@ class IndexSearcher:
             raise ValueError(f"unknown engine {engine!r}")
 
         hits = [Hit(d, s, self.stored(d) if load_fields else {}) for d, s in ranked]
+        groups = query_terms(node, self)
         return SearchResults(
             hits=hits,
             total_hits=total_hits,
             took_ms=(time.perf_counter() - t0) * 1000,
-            query_terms=query_terms(node),
+            query_terms=list(groups),
+            term_groups=groups,
             parsed=str(node),
             engine=used,
             total_is_exact=exact,

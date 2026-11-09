@@ -11,6 +11,8 @@ Syntax::
     (a OR b) AND NOT "c d"           grouping
 
 Precedence, loosest first: ``OR`` < implicit adjacency < ``AND`` < ``NOT``.
+In an implicit sequence, negated clauses are always required exclusions:
+``a b -c`` means ``(a OR b) AND NOT c``.
 Operators are recognised only in UPPERCASE. Lowercase "and"/"or"/"not" are
 ordinary words, which the analyzer usually drops as stopwords.
 
@@ -210,7 +212,17 @@ class _Parser:
             parts.append(self.and_expr())
         if len(parts) == 1:
             return parts[0]
-        return And(tuple(parts)) if self.default_op == "AND" else Or(tuple(parts))
+        if self.default_op == "AND":
+            return And(tuple(parts))
+        # Implicit OR: negated clauses are *required* exclusions, as in Lucene
+        # and web search. "a b -c" means (a OR b) AND NOT c, not a OR b OR NOT c.
+        neg = [p for p in parts if isinstance(p, Not)]
+        pos = [p for p in parts if not isinstance(p, Not)]
+        if not neg:
+            return Or(tuple(parts))
+        if not pos:
+            return And(tuple(neg))
+        return And(((pos[0] if len(pos) == 1 else Or(tuple(pos))), *neg))
 
     def and_expr(self) -> Node:
         parts = [self.unary()]
